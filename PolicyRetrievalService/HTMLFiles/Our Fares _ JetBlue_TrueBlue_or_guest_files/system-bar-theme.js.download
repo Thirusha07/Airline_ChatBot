@@ -1,0 +1,69 @@
+/*
+Dynamically Change Color of iOS System Bar
+
+https://css-tricks.com/meta-theme-color-and-trickery/#aa-demos-and-use-cases
+https://developer.mozilla.org/en-US/docs/Web/API/window/requestAnimationFrame
+*/
+const TIMEOUT = 5000;
+
+const setThemeColour = colour => {
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) {
+    meta.setAttribute('content', colour);
+  }
+};
+
+const observer = new IntersectionObserver(
+  entries => {
+    entries.forEach(entry => {
+      const { isIntersecting, target } = entry;
+      if (isIntersecting) {
+        const colour = window
+          .getComputedStyle(target)
+          .getPropertyValue('background-color');
+        setThemeColour(colour);
+      }
+    });
+  },
+  {
+    root: document.getElementById('jb-header-theme'),
+    rootMargin: '1px 0px -100% 0px',
+  }
+);
+
+let start;
+let previousTimeStamp;
+let done = false;
+
+const step = timestamp => {
+  if (start === undefined) {
+    start = timestamp;
+  }
+  const elapsed = timestamp - start;
+
+  if (previousTimeStamp !== timestamp) {
+    const headerElements = document.querySelectorAll('#jb-header-theme');
+    if (headerElements.length > 0) {
+      done = true;
+      headerElements.forEach(element => observer.observe(element));
+    }
+  }
+
+  if (elapsed < TIMEOUT) {
+    // Stop checking after 5 seconds
+    previousTimeStamp = timestamp;
+    if (!done) {
+      window.requestAnimationFrame(step);
+    }
+  }
+};
+
+// flags are attached on the window as part of initial request
+// they should be present when below code is executed
+// as it is JS code we need to check explicitly it is true
+if (
+  window.__DOTCOM_ENV_CONFIG?.flags?.dynamicMetaThemeColor?.toString() ===
+  'true'
+) {
+  window.requestAnimationFrame(step);
+}

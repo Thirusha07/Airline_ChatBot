@@ -1,0 +1,277 @@
+var EnvironmentNames;
+(function (EnvironmentNames) {
+    EnvironmentNames["local"] = "local-dev";
+    EnvironmentNames["dev"] = "dev";
+    EnvironmentNames["stg"] = "stg";
+    EnvironmentNames["qa"] = "qa";
+    EnvironmentNames["prd"] = "prd";
+})(EnvironmentNames || (EnvironmentNames = {}));
+var ActionTypeEnum;
+(function (ActionTypeEnum) {
+    ActionTypeEnum["page_view"] = "page_view";
+    ActionTypeEnum["click"] = "click";
+    ActionTypeEnum["form_submission"] = "form_submission";
+    ActionTypeEnum["login"] = "login";
+    ActionTypeEnum["logout"] = "logout";
+    ActionTypeEnum["search"] = "search";
+    ActionTypeEnum["video_play"] = "video_play";
+    ActionTypeEnum["performance"] = "performance";
+    ActionTypeEnum["purchase"] = "purchase";
+    ActionTypeEnum["error"] = "error";
+    ActionTypeEnum["unknown"] = "unknown";
+})(ActionTypeEnum || (ActionTypeEnum = {}));
+const loggerRoute = '/cb-logger/log';
+const LOGGER_URL = 'https://cb-api.jetblue.com' + loggerRoute;
+const uuidv4 = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = (Math.random() * 16) | 0, v = c == 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+    });
+};
+const LOGGER_USER_ID = 'loggerUserId';
+const localStorageId = localStorage.getItem(LOGGER_USER_ID) || uuidv4();
+localStorage.setItem(LOGGER_USER_ID, localStorageId);
+const LOGGER_SESSION_ID = 'loggerSessionId';
+const sessionId = sessionStorage.getItem(LOGGER_SESSION_ID) || uuidv4();
+sessionStorage.setItem(LOGGER_SESSION_ID, sessionId);
+let batchData = [];
+const batchInterval = 3000;
+let batchTimer;
+let logConfig = {
+    loggerSettings: {
+        capturePageLoad: true,
+        captureError: false,
+        captureClick: false,
+        enableLoggingToService: true,
+        enableConsoleLogs: true,
+        batchMessages: false,
+        captureHrefChange: true,
+        performanceConfig: {
+            captureResource: false,
+            capturePaint: false,
+            captureNavigation: false,
+        },
+    },
+    subscriptionKey: 'a5ee654e981b4577a58264fed9b1669c',
+    sessionId: sessionId,
+    localStorageId: localStorageId,
+};
+let getLogData = () => {
+    let logData = Object.assign(Object.assign(Object.assign({ sessionId: logConfig.sessionId, localStorageId: logConfig.localStorageId, event: ActionTypeEnum.page_view, timestamp: new Date().toISOString(), pageUrl: document.location.href, referrerUrl: document.referrer, userAgent: window.navigator.userAgent }, (logConfig.userId && { userId: logConfig.userId })), (logConfig.applicationInfo && {
+        applicationInfo: logConfig.applicationInfo,
+    })), (logConfig.additionalData && {
+        additionalData: logConfig.additionalData,
+    }));
+    return logData;
+};
+const onLoadHandler = (event) => {
+    consolelog('onLoadHandler', event);
+    let logData = getLogData();
+    logData.event = ActionTypeEnum.page_view;
+    logData.pageUrl = event.currentTarget.location.href;
+    logData.details = {
+        properties: {
+            pageViewEvent: 'onload',
+        },
+    };
+    felog(logData);
+};
+const addHrefChangeListener = () => {
+    let oldHref = document.location.href;
+    const body = document.querySelector('body');
+    const observer = new MutationObserver(() => {
+        if (oldHref !== document.location.href) {
+            let logData = getLogData();
+            logData.event = ActionTypeEnum.page_view;
+            logData.pageUrl = document.location.href;
+            logData.referrerUrl = oldHref;
+            oldHref = document.location.href;
+            logData.details = {
+                properties: {
+                    pageViewEvent: 'urlchange',
+                },
+            };
+            felog(logData);
+        }
+    });
+    body && observer.observe(body, { childList: true, subtree: true });
+};
+const errorHandler = (event) => {
+    consolelog('errorHandler', event);
+    let logData = getLogData();
+    logData.event = ActionTypeEnum.error;
+    logData.details = {
+        properties: {
+            error: {
+                properties: {
+                    colno: event.colno,
+                    lineno: event.lineno,
+                    message: event.message,
+                    stack: event.error.stack,
+                    source: event.filename,
+                },
+            },
+        },
+    };
+    felog(logData);
+};
+const clickHandler = (event) => {
+    consolelog('clickHandler', event);
+    let logData = getLogData();
+    logData.event = ActionTypeEnum.click;
+    if (event.target instanceof Element) {
+        let targetElement = event.target;
+        logData.details = {
+            properties: {
+                buttonText: targetElement.textContent,
+            },
+            additionalProperties: {
+                targetElementOuterHtml: targetElement.outerHTML,
+                targetElementId: targetElement.id,
+            },
+        };
+    }
+    else {
+        logData.details = {
+            additionalProperties: {
+                notes: 'click event target type is not an Element',
+            },
+        };
+    }
+    felog(logData);
+};
+const beforeUnloadHandler = (event) => {
+    var _a;
+    consolelog('beforeunload', event);
+    ((_a = logConfig.loggerSettings) === null || _a === void 0 ? void 0 : _a.batchMessages) && sendBatchedEvents();
+};
+const logOtherEvent = (actionType, additionalProperties) => {
+    let logData = getLogData();
+    logData.event =
+        actionType in ActionTypeEnum ? actionType : ActionTypeEnum.unknown;
+    logData.details = { additionalProperties };
+    felog(logData);
+};
+const JBFELoggerSetup = (config) => {
+    var _a, _b, _c, _d;
+    consolelog('INIT', config);
+    logConfig = Object.assign(Object.assign(Object.assign({}, logConfig), config), { loggerSettings: Object.assign(Object.assign({}, logConfig.loggerSettings), config.loggerSettings), additionalData: Object.assign(Object.assign({}, logConfig.additionalData), config.additionalData), applicationInfo: Object.assign(Object.assign({}, logConfig.applicationInfo), config.applicationInfo) });
+    if ((_a = logConfig.loggerSettings) === null || _a === void 0 ? void 0 : _a.capturePageLoad) {
+        window.addEventListener('load', (event) => {
+            onLoadHandler(event);
+            logConfig.loggerSettings.captureHrefChange &&
+                addHrefChangeListener();
+        });
+    }
+    if ((_b = logConfig.loggerSettings) === null || _b === void 0 ? void 0 : _b.captureError) {
+        window.addEventListener('error', (event) => {
+            errorHandler(event);
+        });
+    }
+    if ((_c = logConfig.loggerSettings) === null || _c === void 0 ? void 0 : _c.captureClick) {
+        document.addEventListener('click', (event) => {
+            clickHandler(event);
+        });
+    }
+    if ((_d = logConfig.loggerSettings) === null || _d === void 0 ? void 0 : _d.performanceConfig) {
+        setupPerformance(logConfig.loggerSettings.performanceConfig);
+    }
+    addEventListener('beforeunload', (event) => beforeUnloadHandler(event));
+};
+const addAddtionalData = (config) => {
+    const oldData = Object.assign({}, logConfig);
+    logConfig = Object.assign(Object.assign(Object.assign({}, logConfig), config), { loggerSettings: Object.assign(Object.assign({}, logConfig.loggerSettings), config.loggerSettings), additionalData: Object.assign(Object.assign({}, logConfig.additionalData), config.additionalData), applicationInfo: Object.assign(Object.assign({}, logConfig.applicationInfo), config.applicationInfo) });
+    consolelog('Updating Config from', oldData, 'with new data', config, 'Final:', logConfig);
+};
+const handlePerformanceEntryStream = (entries) => {
+    const logData = getLogData();
+    logData.event = ActionTypeEnum.performance;
+    const entryList = entries.getEntries();
+    if (entryList.length === 1 && !entryList[0].name.endsWith(loggerRoute))
+        logData.performanceEntry = entryList[0];
+    else if (entryList.length > 0) {
+        const logArray = [];
+        entryList.forEach((entry) => !entry.name.endsWith(loggerRoute) &&
+            logArray.push(entry.toJSON()));
+        logData.performanceEntry = logArray;
+    }
+    felog(logData);
+};
+const setupPerformance = (performanceConfig) => {
+    const entryTypes = [];
+    if (performanceConfig.captureResource) {
+        entryTypes.push('resource');
+    }
+    if (performanceConfig.captureNavigation) {
+        entryTypes.push('navigation');
+    }
+    if (performanceConfig.capturePaint) {
+        entryTypes.push('paint');
+        entryTypes.push('largest-contentful-paint');
+    }
+    const observer = new PerformanceObserver(handlePerformanceEntryStream);
+    if (entryTypes.length > 0)
+        observer.observe({ entryTypes: entryTypes, buffered: true });
+};
+const batchNewEvent = (data) => {
+    consolelog('Batching New Event', data.event, data);
+    batchData.push(data);
+    if (!batchTimer) {
+        batchTimer = setTimeout(() => sendBatchedEvents(), batchInterval);
+    }
+};
+const sendBatchedEvents = () => {
+    var _a;
+    if (batchData.length > 0) {
+        const body = JSON.stringify({ events: batchData });
+        consolelog(batchData.length, 'batched events found:', batchData);
+        if ((_a = logConfig.loggerSettings) === null || _a === void 0 ? void 0 : _a.enableLoggingToService) {
+            const myHeaders = new Headers();
+            myHeaders.append('Content-Type', 'application/json');
+            myHeaders.append('ocp-apim-subscription-key', logConfig.subscriptionKey);
+            const requestOptions = {
+                method: 'POST',
+                headers: myHeaders,
+                body: body,
+            };
+            consolelog('sending batched events', 'requestOptions ', requestOptions, 'to', LOGGER_URL);
+            fetch(LOGGER_URL, requestOptions)
+                .then((response) => response.text())
+                .then((result) => consolelog('result of felog', result))
+                .catch((error) => consolelog('error sending to felog location', error));
+            batchTimer = undefined;
+        }
+        batchData = [];
+    }
+    else
+        consolelog('send batched events called with no events in queue');
+};
+const consolelog = (...args) => {
+    var _a;
+    ((_a = logConfig.loggerSettings) === null || _a === void 0 ? void 0 : _a.enableConsoleLogs) &&
+        console.log('FELOG--->', ...args);
+};
+const felog = (data) => {
+    var _a, _b;
+    const body = JSON.stringify(data);
+    if ((_a = logConfig.loggerSettings) === null || _a === void 0 ? void 0 : _a.batchMessages) {
+        batchNewEvent(data);
+    }
+    else {
+        consolelog('felog() data', data);
+        if ((_b = logConfig.loggerSettings) === null || _b === void 0 ? void 0 : _b.enableLoggingToService) {
+            const myHeaders = new Headers();
+            myHeaders.append('Content-Type', 'application/json');
+            myHeaders.append('ocp-apim-subscription-key', logConfig.subscriptionKey);
+            const requestOptions = {
+                method: 'POST',
+                headers: myHeaders,
+                body: body,
+            };
+            fetch(LOGGER_URL, requestOptions)
+                .then((response) => response.text())
+                .then((result) => consolelog('result of felog', result))
+                .catch((error) => consolelog('error sending to felog location', error));
+        }
+    }
+};
