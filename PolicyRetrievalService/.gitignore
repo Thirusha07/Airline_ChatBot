@@ -2,12 +2,6 @@
 venv/
 .venv/
 
-# Local Vector Database
-policy_vector_db/
-
 # Python cache files
 __pycache__/
 *.pyc
-
-# IDE files (optional)
-.vscode/
