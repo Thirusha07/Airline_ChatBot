@@ -21,19 +21,19 @@ const taskFunctionMap: Record<string, Function> = {
   },
 
   // Cancel booking by flight_no and customer_id
-//   cancelBooking: async (input: { flightNo: string; customerId: number }) => {
-//   const { flightNo, customerId } = input;
-//   await connectDB();
+  cancelBooking: async (input: { flightNo: string; customerId: number }) => {
+  const { flightNo, customerId } = input;
+  await connectDB();
 
-//   const schedule = await mongoose.models.Schedule.findOne({ flight_no: flightNo });
-//   if (!schedule) return { message: `No flight found with number ${flightNo}` };
+  const schedule = await mongoose.models.Schedule.findOne({ flight_no: flightNo });
+  if (!schedule) return { message: `No flight found with number ${flightNo}` };
 
-//   const booking = await Booking.findOne({ schedule_id: schedule._id, customer_id: customerId });
-//   if (!booking) return { message: `No booking found for flight ${flightNo}` };
+  const booking = await Booking.findOne({ schedule_id: schedule._id, customer_id: customerId });
+  if (!booking) return { message: `No booking found for flight ${flightNo}` };
 
-//   await Booking.findByIdAndDelete(booking._id);
-//   return { message: `Booking for flight ${flightNo} has been cancelled.` };
-// },
+  await Booking.findByIdAndDelete(booking._id);
+  return { message: `Booking for flight ${flightNo} has been cancelled.` };
+},
 
 
   // Seat availability by flight_no
@@ -85,6 +85,7 @@ const taskFunctionMap: Record<string, Function> = {
     message: "Sorry, I didn’t understand that request. Could you please rephrase or provide more details?",
   }),
 };
+
 
 export async function executeTask(taskName: string, input?: any) {
   const fn = taskFunctionMap[taskName];
