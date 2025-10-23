@@ -1,8 +1,9 @@
 import mongoose from "mongoose";
 import connectDB from "../mongo";
 
+
 const ScheduleSchema = new mongoose.Schema({
-  flight_no: { type: mongoose.Schema.Types.ObjectId, ref: "Flight", required: true },
+  flight_id: { type: mongoose.Schema.Types.ObjectId, ref: "Flight", required: true },
   scheduled_departure: { type: Date, required: true },
   scheduled_arrival: { type: Date, required: true },
   current_departure: Date,
@@ -19,12 +20,11 @@ const Schedule =
 
 export async function createSchedule(data: any) {
   await connectDB();
-  console.log("function called")
   const schedule = await Schedule.create(data);
   return schedule;
 }
 
 export async function getSchedules() {
   await connectDB();
-  return await Schedule.find().populate("flight_no");
+  return await Schedule.find().populate("flight_id");
 }

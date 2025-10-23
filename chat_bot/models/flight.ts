@@ -34,7 +34,7 @@ const FlightSchema = new Schema<IFlight>(
 },
     {
     timestamps: true,
-    collection: "t_booking", 
+    collection: "t_flight", 
   }
 );
 

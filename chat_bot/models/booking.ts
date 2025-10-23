@@ -58,7 +58,7 @@ const BookingSchema = new Schema<IBooking>(
   },
   {
     timestamps: true,
-    collection: "t_booking", 
+    collection: "Booking", 
   }
 );
 

@@ -46,7 +46,7 @@ const PassengerSchema = new Schema<IPassenger>(
     },
     price: { type: Number, required: true },
   },
-  { timestamps: true, collection: "t_passenger" }
+  { timestamps: true, collection: "PassengerSeat" }
 );
 
 const PassengerSeat =

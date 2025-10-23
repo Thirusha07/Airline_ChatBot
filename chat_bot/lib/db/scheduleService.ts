@@ -24,6 +24,13 @@ function getStatus(
   return maxDiff > 10 * 60 * 1000 ? "Delayed" : "On-Time";
 }
 
+export async function createSchedule(data: any) {
+  await connectDB();
+  console.log("function called")
+  const schedule = await Schedule.create(data);
+  return schedule;
+}
+
 
 // Update schedule function
 export async function updateSchedule({
@@ -60,8 +67,8 @@ export async function updateSchedule({
 
   // Return structured response
   return {
-    schedule_id: schedule.schedule_id,
-    flight_no: schedule.flight_no,
+    schedule_id: schedule._id,
+    flight_id: schedule.flight_id,
     scheduled_departure: schedule.scheduled_departure,
     scheduled_arrival: schedule.scheduled_arrival,
     current_departure: schedule.current_departure,
